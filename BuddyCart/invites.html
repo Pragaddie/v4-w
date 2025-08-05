@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Invites</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      padding: 20px;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    .invite-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin: 15px auto;
+      max-width: 500px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .invite-actions button {
+      margin-left: 10px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      cursor: pointer;
+    }
+
+    .accept-btn {
+      background-color: #28a745;
+    }
+
+    .reject-btn {
+      background-color: #dc3545;
+    }
+
+    .back-btn {
+      margin: 20px auto;
+      display: block;
+      background-color: #007bff;
+      color: white;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Room Invites</h2>
+  <div id="invites-container"></div>
+  <button class="back-btn" onclick="window.location.href='dashboard.html'">Back to Dashboard</button>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+  <!-- Invite Logic -->
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDtUjUfjd8kOz4uelvt3-We3W2a0BqNUpA",
+      authDomain: "grocery-57318.firebaseapp.com",
+      databaseURL: "https://grocery-57318-default-rtdb.firebaseio.com",
+      projectId: "grocery-57318",
+      storageBucket: "grocery-57318.appspot.com",
+      messagingSenderId: "577584441442",
+      appId: "1:577584441442:web:b96844f850d2c0c404893b"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentUserId = "";
+
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user) return location.href = "login.html";
+      currentUserId = user.uid;
+      loadInvites();
+    });
+
+    function loadInvites() {
+      db.ref(`users/${currentUserId}/invites`).on('value', snap => {
+        const invites = snap.val() || {};
+        const container = document.getElementById('invites-container');
+        container.innerHTML = '';
+
+        Object.entries(invites).forEach(([inviteId, invite]) => {
+          const card = document.createElement('div');
+          card.className = 'invite-card';
+          card.innerHTML = `
+            <div>
+              <strong>${invite.senderName}</strong> invited you to join <strong>${invite.roomName}</strong>
+            </div>
+            <div class="invite-actions">
+              <button class="accept-btn" onclick="acceptInvite('${inviteId}')">Accept</button>
+              <button class="reject-btn" onclick="rejectInvite('${inviteId}')">Reject</button>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      });
+    }
+
+    function acceptInvite(inviteId) {
+      db.ref(`users/${currentUserId}/invites/${inviteId}`).once('value').then(snap => {
+        const invite = snap.val();
+        if (!invite) return;
+
+        const updates = {};
+        updates[`users/${currentUserId}/rooms/${invite.roomId}`] = true;
+        updates[`rooms/${invite.roomId}/members/${currentUserId}`] = true;
+        updates[`users/${currentUserId}/invites/${inviteId}`] = null;
+
+        db.ref().update(updates);
+      });
+    }
+
+    function rejectInvite(inviteId) {
+      db.ref(`users/${currentUserId}/invites/${inviteId}`).remove();
+    }
+  </script>
+</body>
+</html>
